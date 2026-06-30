@@ -1,0 +1,15 @@
+# udev rule for the Solid State Logic SSL 12 control device (VID 31e9, control PID 0024).
+#
+# Grants the logged-in user access to the SSL-specific USB vendor/control endpoint so
+# `ssl12ctl` / `ssl12tui` can talk to it without sudo. Only the control device (31e9:0024)
+# is matched; the audio function (31e9:0005) is left to the kernel's snd-usb-audio driver.
+#
+# TAG+="uaccess" hands the active local user an ACL on the device node via systemd-logind.
+# The "70-" prefix matters: udev evaluates rule files in lexical order, and the builtin that
+# applies the uaccess ACL lives in 70-uaccess.rules. This file must sort BEFORE it so the tag
+# is already set when that builtin runs ("ssl12" < "uaccess", so 70-ssl12 wins). A higher
+# number (e.g. 99-) would set the tag too late and silently grant nothing.
+#
+# Install: copy to /etc/udev/rules.d/ then `udevadm control --reload && udevadm trigger`,
+# or just run `ssl12ctl install-udev`. Replug the device afterwards.
+SUBSYSTEM=="usb", ATTR{idVendor}=="31e9", ATTR{idProduct}=="0024", TAG+="uaccess"

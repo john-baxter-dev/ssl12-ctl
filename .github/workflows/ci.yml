@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # Build, lint and test every feature combination that compiles independently.
+  # Each `usb`/`tui`/`config`/`dev-tools` flag can break on its own, so the matrix
+  # — not any single build — is the point of this job.
+  check:
+    name: check (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: no-default-features
+            features: --no-default-features
+          - name: tui (mock, no usb)
+            features: --no-default-features --features tui
+          - name: tui + dev-tools
+            features: --no-default-features --features tui,dev-tools
+          - name: dev-tools
+            features: --no-default-features --features dev-tools
+          - name: default (usb + tui)
+            features: ""
+          - name: all-features
+            features: --all-features
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: clippy
+        run: cargo clippy --all-targets ${{ matrix.features }} --locked
+      - name: test
+        run: cargo test ${{ matrix.features }} --locked
+
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  msrv:
+    name: msrv (1.88)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      # Verify the rust-version pinned in Cargo.toml actually builds, all features.
+      - run: cargo check --all-features --locked

@@ -1,0 +1,21 @@
+# Rust build output
+/target
+
+# IDE
+/.idea
+*.iml
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor backups
+*.rs.bk
+*~
+
+# Local-only reverse-engineering material
+/captures/
+*.usbpcap
+
+# Local working notes
+*.private.md

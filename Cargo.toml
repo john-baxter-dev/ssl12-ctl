@@ -1,0 +1,62 @@
+[package]
+name = "ssl12-ctl"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Userspace control of the Solid State Logic SSL 12 mixer/DSP over its USB vendor protocol (reverse-engineered)."
+license = "MIT OR Apache-2.0"
+authors = ["John Baxter <john-baxter-dev@proton.me>"]
+repository = "https://github.com/john-baxter-dev/ssl12-ctl"
+homepage = "https://github.com/john-baxter-dev/ssl12-ctl"
+readme = "README.md"
+keywords = ["ssl", "audio", "usb", "mixer", "reverse-engineering"]
+categories = ["command-line-utilities", "hardware-support", "multimedia::audio"]
+
+[features]
+default = ["usb", "tui"]
+# `usb` pulls in nusb (pure-Rust USB, no libusb/native deps) for the live device transport.
+# Disable it to run the protocol unit tests (or build `dev-tools`) without the USB backend.
+usb = ["dep:nusb"]
+# `tui` pulls in ratatui/crossterm for the terminal UI. Pure Rust, no native deps — so the
+# TUI builds and runs (against the mock backend) on any platform WITHOUT libusb/hardware:
+#   cargo run --no-default-features --features tui --bin ssl12tui
+tui = ["dep:ratatui", "dep:crossterm", "config"]
+# `config` enables saving/loading the monitor mix as a TOML preset (serde/toml/dirs). Pure Rust.
+config = ["dep:serde", "dep:toml", "dep:dirs"]
+# `dev-tools` builds the offline reverse-engineering tooling: the `capturedecode` binary plus the
+# `capture` module it decodes with (USBPcap hex-dump text → DSP messages). Pure Rust, no deps,
+# bench/RE-only — off by default so a normal build/install doesn't ship it. Its unit tests run
+# under this feature (`cargo test --features dev-tools`).
+dev-tools = []
+
+[dependencies]
+# Ergonomic error handling with context chains. Pure Rust, no native deps. Used across the bins
+# (and being adopted project-wide); the udev installer in ssl12ctl relies on it.
+anyhow = "1"
+# Pure-Rust USB backend (WinUSB / usbfs / IOKit) — no libusb, no native build deps. Gated behind
+# the `usb` feature so the TUI/mock and the offline tools build with zero system dependencies.
+nusb = { version = "0.2.4", optional = true }
+ratatui = { version = "0.29", optional = true }
+crossterm = { version = "0.28", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+toml = { version = "0.8", optional = true }
+dirs = { version = "5", optional = true }
+
+# Live device CLI — needs the usb feature.
+[[bin]]
+name = "ssl12ctl"
+path = "src/bin/ssl12ctl.rs"
+required-features = ["usb"]
+
+# Terminal UI (meters + controls). Runs against the live device (with `usb`) or the built-in
+# mock backend (no hardware) — ideal for developing on the road. Needs only the `tui` feature.
+[[bin]]
+name = "ssl12tui"
+path = "src/bin/ssl12tui/main.rs"
+required-features = ["tui"]
+
+# Offline capture decoder — no hardware, no libusb. Reverse-engineering tool, off by default.
+[[bin]]
+name = "capturedecode"
+path = "src/bin/capturedecode.rs"
+required-features = ["dev-tools"]
